@@ -75,7 +75,6 @@ persist_to_disk() ->
 %% ==================================================================
 
 init([]) ->
-    process_flag(trap_exit, true),
     {ok, F} = application:get_env(etorrent, fast_resume_file),
     X = ets:file2tab(F, [{verify, true}]),
     _ = case X of
@@ -108,7 +107,7 @@ handle_info(_Info, State) ->
     {noreply, State}.
 
 
-terminate(normal, _State) ->
+terminate(Reason, _State) when Reason =:= normal; Reason =:= shutodwn ->
     persist_to_disk(),
     ok;
 terminate(_Reason, _State) ->
