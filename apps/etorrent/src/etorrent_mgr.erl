@@ -52,7 +52,6 @@ stop(File) ->
 
 %% Callbacks
 init([PeerId]) ->
-    process_flag(trap_exit, true),
     {ok, #state { local_peer_id = PeerId}}.
 
 handle_cast({start, F}, S) ->
