@@ -17,8 +17,7 @@
          new/3, all/0, statechange/2,
          num_pieces/1, decrease_not_fetched/1,
          is_seeding/1, seeding/0,
-         state/1, lookup/1,
-         find/1, is_endgame/1]).
+         lookup/1, is_endgame/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, code_change/3,
          handle_info/2, terminate/2]).
@@ -99,15 +98,6 @@ statechange(Id, What) ->
 num_pieces(Id) ->
     gen_server:call(?SERVER, {num_pieces, Id}).
 
-% @doc Return the current state of the torrent identified by Id
-% @end
--spec state(integer()) -> not_found | {value, seeding | leeching | unknown}.
-state(Id) ->
-    case ets:lookup(?TAB, Id) of
-        [] -> not_found;
-        [M] -> {value, M#torrent.state}
-    end.
-
 %% @doc Return a property list of the torrent identified by Id
 %% @end
 -spec lookup(integer()) ->
@@ -122,8 +112,8 @@ lookup(Id) ->
 % @end
 -spec is_seeding(integer()) -> boolean().
 is_seeding(Id) ->
-    {value, S} = state(Id),
-    S =:= seeding.
+    {value, S} = lookup(Id),
+    proplists:get_value(state, S) =:= seeding.
 
 % @doc Returns all torrents which are currently seeding
 % @end
@@ -133,17 +123,6 @@ seeding() ->
     {value, [proplists:get_value(id, T) ||
 		T <- Torrents,
 		proplists:get_value(state, T) =:= seeding]}.
-
-% @doc Return a torrent_info block for a given torrent
-% @end
--spec find(integer()) ->
-    {torrent_info, undefined | integer(),
-                   undefined | integer(),
-                   undefined | integer()}.
-find(Id) ->
-    [T] = ets:lookup(?TAB, Id),
-    {torrent_info, T#torrent.uploaded, T#torrent.downloaded, T#torrent.left}.
-
 
 % @doc Track that we downloaded a piece
 %  <p>As a side-effect, this call eventually updates the endgame state</p>

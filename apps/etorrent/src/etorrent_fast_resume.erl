@@ -51,12 +51,16 @@ query_state(Id) ->
 
 %% Enter a torrent into the tracking table
 track_torrent(Id, FName) ->
-    case etorrent_torrent:state(Id) of
+    case etorrent_torrent:lookup(Id) of
         not_found -> ignore;
-        {value, unknown} -> ignore;
-        {value, seeding} -> ets:insert(?MODULE, {FName, seeding});
-        {value, _Other}  -> ets:insert(?MODULE,
-                                {FName, {bitfield, etorrent_piece_mgr:bitfield(Id)}})
+        {value, PL} ->
+	    case proplists:get_value(state, PL) of
+		unknown -> ignore;
+		seeding -> ets:insert(?MODULE, {FName, seeding});
+		_Other  -> ets:insert(
+			     ?MODULE,
+			     {FName, {bitfield, etorrent_piece_mgr:bitfield(Id)}})
+	    end
     end.
 
 %% Enter all torrents into a tracking table
