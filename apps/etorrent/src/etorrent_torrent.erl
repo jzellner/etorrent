@@ -17,7 +17,7 @@
          new/3, all/0, statechange/2,
          num_pieces/1, decrease_not_fetched/1,
          is_seeding/1, seeding/0,
-         state/1,
+         state/1, lookup/1,
          find/1, is_endgame/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, code_change/3,
@@ -106,6 +106,16 @@ state(Id) ->
     case ets:lookup(?TAB, Id) of
         [] -> not_found;
         [M] -> {value, M#torrent.state}
+    end.
+
+%% @doc Return a property list of the torrent identified by Id
+%% @end
+-spec lookup(integer()) ->
+		    not_found | {value, [{term(), term()}]}.
+lookup(Id) ->
+    case ets:lookup(?TAB, Id) of
+	[] -> not_found;
+	[M] -> {value, proplistify(M)}
     end.
 
 % @doc Returns true if the torrent is a seeding torrent
