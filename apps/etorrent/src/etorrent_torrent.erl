@@ -9,8 +9,6 @@
 
 -behaviour(gen_server).
 
--include("etorrent_torrent.hrl").
-
 %% Counter for how many pieces is missing from this torrent
 -record(c_pieces, {id :: non_neg_integer(), % Torrent id
                    missing :: non_neg_integer()}). % Number of missing pieces
@@ -24,6 +22,30 @@
 
 -export([init/1, handle_call/3, handle_cast/2, code_change/3,
          handle_info/2, terminate/2]).
+
+%% The type of torrent records.
+
+-type(torrent_state() :: 'leeching' | 'seeding' | 'endgame' | 'unknown').
+%% A single torrent is represented as the 'torrent' record
+-record(torrent,
+	{ %% Unique identifier of torrent, monotonically increasing
+	  id :: non_neg_integer(),
+	  %% How many bytes are there left before we have the full torrent
+	  left = unknown :: non_neg_integer(),
+	  %% How many bytes are there in total
+	  total  :: non_neg_integer(),
+	  %% How many bytes have we uploaded
+	  uploaded :: non_neg_integer(),
+	  %% How many bytes have we downloaded
+	  downloaded :: non_neg_integer(),
+	  %% Number of pieces in torrent
+	  pieces = unknown :: non_neg_integer() | 'unknown',
+	  %% How many people have a completed file?
+	  seeders = 0 :: non_neg_integer(),
+	  %% How many people are downloaded
+	  leechers = 0 :: non_neg_integer(),
+	  rate_sparkline = [0.0],
+	  state :: torrent_state()}).
 
 -define(SERVER, ?MODULE).
 -define(TAB, ?MODULE).
@@ -52,7 +74,7 @@ new(Id, Info, NPieces) ->
 
 % @doc Return all torrents, sorted by Id
 % @end
--spec all() -> [#torrent{}].
+-spec all() -> [[{term(), term()}]].
 all() ->
     gen_server:call(?SERVER, all).
 
@@ -98,8 +120,9 @@ is_seeding(Id) ->
 -spec seeding() -> {value, [integer()]}.
 seeding() ->
     Torrents = all(),
-    {value, [T#torrent.id || T <- Torrents,
-                    T#torrent.state =:= seeding]}.
+    {value, [proplists:get_value(id, T) ||
+		T <- Torrents,
+		proplists:get_value(state, T) =:= seeding]}.
 
 % @doc Return a torrent_info block for a given torrent
 % @end
@@ -211,7 +234,20 @@ terminate(_Reason, _S) ->
 %%--------------------------------------------------------------------
 all(Pos) ->
     Objects = ets:match_object(?TAB, '$1'),
-    lists:keysort(Pos, Objects).
+    lists:keysort(Pos, Objects),
+    [proplistify(O) || O <- Objects].
+
+proplistify(T) ->
+    [{id, T#torrent.id},
+     {total, T#torrent.total},
+     {left,  T#torrent.left},
+     {uploaded, T#torrent.uploaded},
+     {downloaded, T#torrent.downloaded},
+     {leechers, T#torrent.leechers},
+     {seeders, T#torrent.seeders},
+     {state, T#torrent.state},
+     {rate_sparkline, T#torrent.rate_sparkline}].
+
 
 %% @doc Run function F on each torrent
 %% @end
