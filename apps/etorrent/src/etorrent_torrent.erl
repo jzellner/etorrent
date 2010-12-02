@@ -37,6 +37,9 @@
 	  uploaded :: non_neg_integer(),
 	  %% How many bytes have we downloaded
 	  downloaded :: non_neg_integer(),
+	  %% Uploaded and downloaded bytes, all time
+	  all_time_uploaded = 0 :: non_neg_integer(),
+	  all_time_downloaded = 0 :: non_neg_integer(),
 	  %% Number of pieces in torrent
 	  pieces = unknown :: non_neg_integer() | 'unknown',
 	  %% How many people have a completed file?
@@ -66,6 +69,8 @@ start_link() ->
 -spec new(integer(),
        {{uploaded, integer()},
         {downloaded, integer()},
+	{all_time_uploaded, non_neg_integer()},
+	{all_time_downloaded, non_neg_integer()},
         {left, integer()},
         {total, integer()}}, integer()) -> ok.
 new(Id, Info, NPieces) ->
@@ -154,6 +159,8 @@ init([]) ->
     {ok, #state{ monitoring = dict:new() }}.
 
 handle_call({new, Id, {{uploaded, U}, {downloaded, D},
+		       {all_time_uploaded, AU},
+		       {all_time_downloaded, AD},
                        {left, L}, {total, T}}, NPieces}, {Pid, _Tag}, S) ->
     State = case L of
                 0 -> etorrent_event_mgr:seeding_torrent(Id),
@@ -166,6 +173,8 @@ handle_call({new, Id, {{uploaded, U}, {downloaded, D},
                            total = T,
                            uploaded = U,
                            downloaded = D,
+			   all_time_uploaded = AU,
+			   all_time_downloaded = AD,
                            pieces = NPieces,
                            state = State }),
     Missing = etorrent_piece_mgr:num_not_fetched(Id),
@@ -232,6 +241,8 @@ proplistify(T) ->
      {left,  T#torrent.left},
      {uploaded, T#torrent.uploaded},
      {downloaded, T#torrent.downloaded},
+     {all_time_downloaded, T#torrent.all_time_downloaded},
+     {all_time_uploaded,   T#torrent.all_time_uploaded},
      {leechers, T#torrent.leechers},
      {seeders, T#torrent.seeders},
      {state, T#torrent.state},

@@ -54,8 +54,11 @@ track_torrent(Id, FName) ->
     case etorrent_torrent:lookup(Id) of
         not_found -> ignore;
         {value, PL} ->
-	    Uploaded = proplists:get_value(uploaded, PL),
-	    Downloaded = proplists:get_value(downloaded, PL),
+
+	    Uploaded = proplists:get_value(uploaded, PL) +
+		       proplists:get_value(all_time_uploaded, PL),
+	    Downloaded = proplists:get_value(downloaded, PL) +
+		         proplists:get_value(all_time_downloaded, PL),
 	    case proplists:get_value(state, PL) of
 		unknown -> ignore;
 		seeding -> ets:insert(?MODULE,
