@@ -43,7 +43,7 @@ start_link() ->
 %%         an unknown state.</dd>
 %% </dl>
 %% @end
--spec query_state(integer()) -> unknown | seeding | {bitfield, bitfield()}.
+-spec query_state(integer()) -> unknown | {value, [{term(), term()}]}.
 query_state(Id) ->
         gen_server:call(?SERVER, {query_state, Id}).
 
@@ -54,12 +54,20 @@ track_torrent(Id, FName) ->
     case etorrent_torrent:lookup(Id) of
         not_found -> ignore;
         {value, PL} ->
+	    Uploaded = proplists:get_value(uploaded, PL),
+	    Downloaded = proplists:get_value(downloaded, PL),
 	    case proplists:get_value(state, PL) of
 		unknown -> ignore;
-		seeding -> ets:insert(?MODULE, {FName, seeding});
+		seeding -> ets:insert(?MODULE,
+				      {FName, [{state, seeding},
+					       {uploaded, Uploaded},
+					       {downloaded, Downloaded}]});
 		_Other  -> ets:insert(
 			     ?MODULE,
-			     {FName, {bitfield, etorrent_piece_mgr:bitfield(Id)}})
+			     {FName, [{state,
+				       {bitfield, etorrent_piece_mgr:bitfield(Id)}},
+				      {uploaded, Uploaded},
+				      {downloaded, Downloaded}]})
 	    end
     end.
 
@@ -95,7 +103,7 @@ handle_call({query_state, Id}, _From, S) ->
     {value, PL} = etorrent_table:get_torrent(Id),
     case ets:lookup(etorrent_fast_resume, proplists:get_value(filename, PL)) of
         [] -> {reply, unknown, S};
-        [{_, R}] -> {reply, R, S}
+        [{_, PL}] -> {reply, {value, PL}, S}
     end;
 handle_call(_Request, _From, State) ->
     Reply = ok,
